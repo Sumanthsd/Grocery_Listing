@@ -1,0 +1,4 @@
+<resources>
+    <!-- Adjust the width as needed -->
+    <dimen name="column_width">55dp</dimen>
+</resources>

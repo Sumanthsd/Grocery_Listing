@@ -1,0 +1,10 @@
+<!-- res/drawable/border.xml -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Border for the top of each row -->
+    <item android:top="1dp">
+        <shape android:shape="rectangle">
+            <solid android:color="@android:color/transparent" />
+            <stroke android:width="1dp" android:color="#000000" />
+        </shape>
+    </item>
+</layer-list>
