@@ -15,9 +15,13 @@ import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import com.google.android.material.snackbar.Snackbar
-
+import android.content.Context
+import android.view.inputmethod.InputMethodManager
+import androidx.lifecycle.ViewModelProvider
 
 class MainActivity : AppCompatActivity() {
+
+    private lateinit var groceryViewModel: GroceryViewModel
 
     private val grocerySet = mutableSetOf<GroceryItem>()
 
@@ -50,8 +54,14 @@ class MainActivity : AppCompatActivity() {
 
         val btnAddItem: Button = findViewById(R.id.btnAddItem)
         btnAddItem.setOnClickListener {
-            addItem()
+            addItem(it)
         }
+
+        val myApp = application as MyApp
+        groceryViewModel = ViewModelProvider(this, GroceryViewModelFactory(myApp.repository))
+            .get(GroceryViewModel::class.java)
+
+        groceryViewModel.allItems.observe(this) { groceryItems -> }
     }
 
     private val editorActionListener = TextView.OnEditorActionListener { _, actionId, event ->
@@ -75,7 +85,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-        private fun addItem(view: android.view.View) {
+        private fun addItem(view: View) {
         val itemName = editTextItem.text.toString()
         val star = editstar.text.toString().toDoubleOrNull() ?: 0.0
         val dmart = editdmart.text.toString().toDoubleOrNull() ?: 0.0
@@ -83,58 +93,47 @@ class MainActivity : AppCompatActivity() {
         val bb = editbb.text.toString().toDoubleOrNull() ?: 0.0
         val itemQty = editTextQty.text.toString().toDoubleOrNull() ?: 0.0
 
-        if (itemName.isBlank() || star == null || dmart == null || itemQty == null) {
-            // Display an error message using Snackbar
+        if (itemName.isBlank() || star == null || dmart == null || flipkart == null || bb == null || itemQty == null) {
             showSnackbar("Please enter all details")
             return
         }
+
+        if (grocerySet.any { it.name.equals(itemName, ignoreCase = true) }) {
+            showSnackbar("Item '$itemName' already exists")
+            return
+        }
+
         // Create a new GroceryItem
-        val newItem = GroceryItem(itemName, star, dmart, flipkart, bb, itemQty)
+        val newItem = GroceryItem(1,itemName, star, dmart, flipkart, bb, itemQty)
+
+        // Create a new GroceryItemEntity
+        val newItemEntity = GroceryItemEntity(0, itemName, star, dmart, flipkart, bb, itemQty)
+
+        // Insert the new item into the database
+        groceryViewModel.insert(newItemEntity)
 
         // Add the new item to the grocerySet
         grocerySet.add(newItem)
 
         // Call the display function to refresh the UI
-        displayGroceryList(showDetails = true)
-    }
+        displayGroceryList()
 
-    fun addItem() {
-        val itemName = editTextItem.text.toString()
-        val star = editstar.text.toString().toDoubleOrNull()
-        val dmart = editdmart.text.toString().toDoubleOrNull()
-        val flipkart = editflipkart.text.toString().toDoubleOrNull()
-        val bb = editbb.text.toString().toDoubleOrNull()
-        val Qty = editTextQty.text.toString().toDoubleOrNull()
-
-        if (itemName.isBlank() || star == null || dmart == null || Qty == null) {
-            // Display an error message using Snackbar
-            showSnackbar("Please enter all details")
-            return
-        }
-
-        // Create a new GroceryItem
-        val newItem = GroceryItem(itemName, star, dmart, flipkart, bb, Qty)
-
-        grocerySet.add(newItem)
-
-        // Call the display function to refresh the UI
-        displayGroceryList(showDetails = true)
+        // Hide the soft keyboard
+        hideKeyboard()
 
         // Clear the input fields
         clearInputFields()
 
         // Display a success message using Snackbar
         showSnackbar("Item added successfully")
+    }
 
-        if (!itemName.isBlank() && star != null && dmart != null && Qty != null) {
-            val groceryItem = GroceryItem(itemName, star, dmart, flipkart, bb, Qty)
-            grocerySet.add(groceryItem)
-            displayGroceryList(showDetails = true)
-        }
+    private fun hideKeyboard() {
+        val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+        imm.hideSoftInputFromWindow(currentFocus?.windowToken, 0)
     }
 
     private fun clearInputFields() {
-        // Clear the input fields
         editTextItem.text.clear()
         editstar.text.clear()
         editdmart.text.clear()
@@ -143,16 +142,16 @@ class MainActivity : AppCompatActivity() {
         editTextQty.text.clear()
     }
 
-    private fun displayGroceryList(showDetails: Boolean) {
+    private fun displayGroceryList() {
         tableLayout.removeAllViews()
 
         // Header row
         val headerRow = TableRow(this)
         headerRow.addView(createTextView("Item", true, true))
-        headerRow.addView(createTextView("star", false, true))
-        headerRow.addView(createTextView("dmart", false, true))
-        headerRow.addView(createTextView("flipkart", false, true))
-        headerRow.addView(createTextView("bb", false, true))
+        headerRow.addView(createTextView("Star", false, true))
+        headerRow.addView(createTextView("DMart", false, true))
+        headerRow.addView(createTextView("Flipkart", false, true))
+        headerRow.addView(createTextView("BB", false, true))
         headerRow.addView(createTextView("Qty", false, true))
 
         // Set border background for headerRow
@@ -180,10 +179,36 @@ class MainActivity : AppCompatActivity() {
             dataRow.addView(bbTextView)
             dataRow.addView(QtyTextView)
 
+            // Set OnClickListener for row selection
+            dataRow.setOnClickListener {
+                // Toggle the selection state
+                item.isSelected = !item.isSelected
+                // Update UI based on the selection state (you can change row color, etc.)
+                updateRowSelection(dataRow, item.isSelected)
+            }
             tableLayout.addView(dataRow)
         }
     }
 
+    private fun updateRowSelection(row: TableRow, isSelected: Boolean) {
+        // Update UI based on the selection state (you can change row color, etc.)
+        if (isSelected) {
+            row.setBackgroundColor(ContextCompat.getColor(this, android.R.color.darker_gray))
+        } else {
+            row.setBackgroundColor(ContextCompat.getColor(this, android.R.color.white))
+        }
+    }
+
+    private fun clearSelectedRows() {
+        // Create a copy of the set to avoid concurrent modification issues
+        val selectedItems = grocerySet.filter { it.isSelected }.toSet()
+
+        // Remove the selected items from the set
+        grocerySet.removeAll(selectedItems)
+
+        // Call the display function to refresh the UI
+        displayGroceryList()
+    }
 
     private fun createTextView(text: String,  isCheckBoxColumn: Boolean, isHeader: Boolean): View {
         val container = LinearLayout(this)
@@ -212,35 +237,27 @@ class MainActivity : AppCompatActivity() {
         if (isHeader) {
             textView.gravity = Gravity.CENTER
         } else {
-            textView.gravity = Gravity.START or Gravity.CENTER_VERTICAL
+            textView.gravity = Gravity.CENTER_VERTICAL or Gravity.CENTER_HORIZONTAL
         }
-
-        val tableRow = TableRow(this)
-        tableRow.layoutParams = TableLayout.LayoutParams(
-            TableLayout.LayoutParams.MATCH_PARENT,
-            TableLayout.LayoutParams.WRAP_CONTENT
-        )
-        textView.gravity = Gravity.START or Gravity.CENTER_VERTICAL
-
         container.addView(textView)
         return container
     }
 
     fun reset(view: View) {
-        // Clear the grocerySet and update the UI
-        grocerySet.clear()
-        displayGroceryList(showDetails = true)
-
-        // Clear the input fields
-        clearInputFields()
-
-        // Display a message using Snackbar
-        showSnackbar("List reset successfully")
+        if (grocerySet.isNotEmpty()) {
+            grocerySet.clear()
+            displayGroceryList()
+            clearInputFields()
+            showSnackbar("List reset successfully")
+        }
+        else {
+            showSnackbar("No data available to reset")
+        }
     }
 
     private fun showSnackbar(message: String) {
         Snackbar.make(
-            findViewById(android.R.id.content),  // Use the root view of the activity
+            findViewById(android.R.id.content),
             message,
             Snackbar.LENGTH_SHORT
         ).show()
@@ -248,10 +265,12 @@ class MainActivity : AppCompatActivity() {
 }
 
 data class GroceryItem(
+    val id: Int,
     val name: String,
     val star: Double,
     val dmart: Double,
     val flipkart: Double?,
     val bb: Double?,
     val Qty: Double,
+    var isSelected: Boolean = false
 )

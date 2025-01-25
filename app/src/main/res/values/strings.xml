@@ -1,7 +1,7 @@
 <resources>
     <string name="app_name">Grocery</string>
     <string name="grocery_listing">Grocery Listing</string>
-    <string name="item_name">Item Name</string>
+    <string name="item_name">Item</string>
     <string name="star_price">Star Price</string>
     <string name="dmart_price">DMart Price</string>
     <string name="flipkart_price">Flipkart Price</string>
@@ -10,8 +10,10 @@
     <string name="add_items">Add Items</string>
     <string name="reset">Reset</string>
     <string name="star">Star</string>
-    <string name="dmart">Dmart</string>
+    <string name="dmart">DMart</string>
     <string name="quantity">Qty</string>
     <string name="flipkart">Flipkart</string>
+    <string name="clear_selected">Clear</string>
+    <!--    <string name="clear_selected">Clear</string>-->
 
 </resources>
